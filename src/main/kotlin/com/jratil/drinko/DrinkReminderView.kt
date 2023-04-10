@@ -1,11 +1,10 @@
 package com.jratil.drinko
 
-import javafx.application.Platform
+import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.concurrent.Task
 import javafx.scene.control.ToggleGroup
-import kotlinx.coroutines.Job
 import org.controlsfx.control.Notifications
 import tornadofx.*
 import java.time.Duration
@@ -18,7 +17,8 @@ import java.time.format.DateTimeFormatter
  **/
 class DrinkReminderView : View() {
     private val interval = SimpleStringProperty()
-    private val unit = SimpleBooleanProperty(true) // true for seconds, false for minutes
+    // true for seconds, false for minutes
+    private val unit = SimpleBooleanProperty(true)
     private val nextReminderTime = SimpleStringProperty()
     private val remainingTime = SimpleStringProperty()
     private var timerJob: Task<*>? = null
@@ -26,11 +26,6 @@ class DrinkReminderView : View() {
     private val timerRunning = SimpleBooleanProperty(false)
 
     private lateinit var toggleGroup: ToggleGroup
-
-    override fun onDock() {
-        super.onDock()
-        unit.bind(toggleGroup.selectedValueProperty())
-    }
 
     override val root = vbox {
         paddingAll = 20.0
@@ -45,8 +40,14 @@ class DrinkReminderView : View() {
             togglegroup {
                 toggleGroup = this
                 spacing = 5.0
-                radiobutton("Seconds", value = true)
+                val defaultRadio = radiobutton("Seconds", value = true)
                 radiobutton("Minutes", value = false)
+                // set default radio
+                selectToggle(defaultRadio)
+                // bind select unit
+                unit.bindBidirectional(this@DrinkReminderView.toggleGroup.selectedToggle.selectedProperty())
+                // bind timer running, disable when running
+                disableProperty().bind(timerRunning)
             }
         }
 
@@ -98,9 +99,9 @@ class DrinkReminderView : View() {
                 runAsync {
                     if (remainingDuration.isNegative) {
                         scheduledReminderTime.plus(intervalDuration).let {
-                            showNotification()
                             scheduledReminderTime = it
                             remainingDuration = Duration.between(now, scheduledReminderTime)
+                            showNotification()
                         }
                     }
                 }
